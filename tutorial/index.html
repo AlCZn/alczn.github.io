@@ -69,6 +69,27 @@
             color: #64748b;
             text-align: center;
         }
+
+        .demo-box {
+            padding: 20px;
+            text-align: center;
+            color: white;
+            background: #1677ff;
+            border-radius: 8px;
+        }
+
+        .demo-button {
+            padding: 10px 18px;
+            color: white;
+            background: #6c5ce7;
+            border: 0;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .demo-button:hover {
+            background: #4834d4;
+        }
     </style>
 </head>
 <body>
@@ -216,9 +237,75 @@
                 <button type="submit">提交</button>
             </form>
         </section>
+        <!-- ...existing code... -->
 
         <section>
-            <h2>八、HTML 学习建议</h2>
+            <h2>八、CSS 入门教程</h2>
+            <p>
+                CSS 是“层叠样式表”，用于设置网页的颜色、字体、间距和布局。
+            </p>
+
+            <pre><code>p {
+    color: #1677ff;
+    font-size: 18px;
+    text-align: center;
+}</code></pre>
+
+            <h3>常用 CSS 属性</h3>
+            <ul>
+                <li><code>color</code>：设置文字颜色。</li>
+                <li><code>background</code>：设置背景。</li>
+                <li><code>font-size</code>：设置文字大小。</li>
+                <li><code>margin</code>：设置外边距。</li>
+                <li><code>padding</code>：设置内边距。</li>
+                <li><code>border</code>：设置边框。</li>
+                <li><code>display</code>：设置元素显示方式。</li>
+            </ul>
+
+            <div class="demo-box">
+                这是一个 CSS 样式示例
+            </div>
+        </section>
+
+        <section>
+            <h2>九、JavaScript 入门教程</h2>
+            <p>
+                JavaScript 是一种编程语言，可以为网页添加交互功能。
+            </p>
+
+            <pre><code>const button = document.querySelector("button");
+
+button.addEventListener("click", function () {
+    alert("按钮被点击了！");
+});</code></pre>
+
+            <h3>常用 JavaScript 内容</h3>
+            <ul>
+                <li><code>const</code> 和 <code>let</code>：声明变量。</li>
+                <li><code>if</code>：进行条件判断。</li>
+                <li><code>for</code>：执行循环。</li>
+                <li><code>function</code>：定义函数。</li>
+                <li><code>document.querySelector()</code>：获取网页元素。</li>
+                <li><code>addEventListener()</code>：监听用户操作。</li>
+            </ul>
+
+            <button class="demo-button" id="colorButton">
+                点击改变颜色
+            </button>
+            <p id="message">等待操作……</p>
+        </section>
+
+        <section>
+            <h2>十、HTML、CSS 和 JavaScript 的关系</h2>
+            <ul>
+                <li><strong>HTML</strong>：网页的结构。</li>
+                <li><strong>CSS</strong>：网页的样式。</li>
+                <li><strong>JavaScript</strong>：网页的行为和交互。</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>十一、HTML 学习建议</h2>
             <ol>
                 <li>先掌握常用标签和属性。</li>
                 <li>使用语义化标签，如 <code>&lt;header&gt;</code>、<code>&lt;main&gt;</code> 和 <code>&lt;footer&gt;</code>。</li>
@@ -232,5 +319,15 @@
     <footer>
         HTML 入门教程 · 祝你学习愉快
     </footer>
+
+    <script>
+        const colorButton = document.querySelector("#colorButton");
+        const message = document.querySelector("#message");
+
+        colorButton.addEventListener("click", function () {
+            document.body.style.background = "#fff4e6";
+            message.textContent = "JavaScript 已修改页面背景颜色！";
+        });
+    </script>
 </body>
 </html>
