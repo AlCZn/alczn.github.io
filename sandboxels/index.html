@@ -7,7 +7,431 @@
     <style>
         * {
             box-sizing: border-box;
+        }<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理沙盒</title>
+    <style>
+        * {
+            box-sizing: border-box;
         }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #20242b;
+            color: #fff;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app {
+            width: min(900px, 96vw);
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0 0 12px;
+            font-size: 24px;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        button,
+        select,
+        input {
+            font: inherit;
+        }
+
+        button,
+        select {
+            border: 0;
+            border-radius: 6px;
+            padding: 7px 10px;
+            background: #3a414c;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover,
+        select:hover {
+            background: #505967;
+        }
+
+        button.active {
+            background: #d49b32;
+            color: #181818;
+        }
+
+        #waterButton.active {
+            background: #3d9be9;
+            color: white;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #11151a;
+            border: 2px solid #68717d;
+            border-radius: 6px;
+            cursor: crosshair;
+            touch-action: none;
+            image-rendering: pixelated;
+        }
+
+        .hint {
+            color: #b7bec8;
+            text-align: center;
+            font-size: 13px;
+            margin-top: 9px;
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <h1>物理沙盒</h1>
+
+        <div class="toolbar">
+            <button id="sandButton" class="active">放置沙子</button>
+            <button id="waterButton">放置水</button>
+            <button id="eraseButton">擦除</button>
+
+            <label>
+                重力方向：
+                <select id="gravitySelect">
+                    <option value="0,1">↓ 下</option>
+                    <option value="-1,1">↙ 左下</option>
+                    <option value="1,1">↘ 右下</option>
+                    <option value="-1,0">← 左</option>
+                    <option value="1,0">→ 右</option>
+                    <option value="-1,-1">↖ 左上</option>
+                    <option value="0,-1">↑ 上</option>
+                    <option value="1,-1">↗ 右上</option>
+                </select>
+            </label>
+
+            <label>
+                笔刷：
+                <input id="brushSize" type="range" min="1" max="8" value="2">
+                <span id="brushValue">2</span>
+            </label>
+
+            <button id="pauseButton">暂停</button>
+            <button id="clearButton">清空</button>
+        </div>
+
+        <canvas id="canvas" width="160" height="120"></canvas>
+        <div class="hint">
+            沙子：向下或斜下移动；水：向下或左右移动。移动会交换两个位置的粒子。
+        </div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const COLS = canvas.width;
+        const ROWS = canvas.height;
+
+        // 0：空，1：沙子，2：水
+        const particles = Array.from(
+            { length: ROWS },
+            () => new Uint8Array(COLS)
+        );
+
+        const density = {
+            0: 0,
+            1: 2,
+            2: 1
+        };
+
+        let gravity = { x: 0, y: 1 };
+        let material = 1;
+        let mode = "place";
+        let paused = false;
+        let drawing = false;
+
+        const sandButton = document.getElementById("sandButton");
+        const waterButton = document.getElementById("waterButton");
+        const eraseButton = document.getElementById("eraseButton");
+        const gravitySelect = document.getElementById("gravitySelect");
+        const brushSize = document.getElementById("brushSize");
+        const brushValue = document.getElementById("brushValue");
+        const pauseButton = document.getElementById("pauseButton");
+        const clearButton = document.getElementById("clearButton");
+
+        function selectTool(nextMode, nextMaterial = material) {
+            mode = nextMode;
+            material = nextMaterial;
+
+            sandButton.classList.toggle(
+                "active",
+                mode === "place" && material === 1
+            );
+
+            waterButton.classList.toggle(
+                "active",
+                mode === "place" && material === 2
+            );
+
+            eraseButton.classList.toggle(
+                "active",
+                mode === "erase"
+            );
+        }
+
+        sandButton.addEventListener("click", () => {
+            selectTool("place", 1);
+        });
+
+        waterButton.addEventListener("click", () => {
+            selectTool("place", 2);
+        });
+
+        eraseButton.addEventListener("click", () => {
+            selectTool("erase");
+        });
+
+        gravitySelect.addEventListener("change", () => {
+            const [x, y] = gravitySelect.value.split(",").map(Number);
+            gravity = { x, y };
+        });
+
+        brushSize.addEventListener("input", () => {
+            brushValue.textContent = brushSize.value;
+        });
+
+        pauseButton.addEventListener("click", () => {
+            paused = !paused;
+            pauseButton.textContent = paused ? "继续" : "暂停";
+        });
+
+        clearButton.addEventListener("click", () => {
+            for (const row of particles) {
+                row.fill(0);
+            }
+        });
+
+        function paint(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = COLS / rect.width;
+            const scaleY = ROWS / rect.height;
+
+            const centerX = Math.floor(
+                (event.clientX - rect.left) * scaleX
+            );
+            const centerY = Math.floor(
+                (event.clientY - rect.top) * scaleY
+            );
+
+            const radius = Number(brushSize.value);
+
+            for (let y = centerY - radius; y <= centerY + radius; y++) {
+                for (let x = centerX - radius; x <= centerX + radius; x++) {
+                    if (
+                        x >= 0 &&
+                        x < COLS &&
+                        y >= 0 &&
+                        y < ROWS &&
+                        (x - centerX) ** 2 +
+                        (y - centerY) ** 2 <= radius ** 2
+                    ) {
+                        particles[y][x] =
+                            mode === "place" ? material : 0;
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener("pointerdown", event => {
+            drawing = true;
+            canvas.setPointerCapture(event.pointerId);
+            paint(event);
+        });
+
+        canvas.addEventListener("pointermove", event => {
+            if (drawing) {
+                paint(event);
+            }
+        });
+
+        canvas.addEventListener("pointerup", () => {
+            drawing = false;
+        });
+
+        canvas.addEventListener("pointercancel", () => {
+            drawing = false;
+        });
+
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+
+            return array;
+        }
+
+        function moveParticles() {
+            const cells = [];
+            const moved = Array.from(
+                { length: ROWS },
+                () => new Uint8Array(COLS)
+            );
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (particles[y][x]) {
+                        cells.push({ x, y });
+                    }
+                }
+            }
+
+            // 重力方向更靠前的粒子优先处理
+            cells.sort((a, b) => {
+                const distanceA =
+                    a.x * gravity.x + a.y * gravity.y;
+                const distanceB =
+                    b.x * gravity.x + b.y * gravity.y;
+
+                return distanceA - distanceB;
+            });
+
+            // 与重力垂直的方向
+            const sideX = -gravity.y;
+            const sideY = gravity.x;
+
+            for (const { x, y } of cells) {
+                if (moved[y][x]) {
+                    continue;
+                }
+
+                const particle = particles[y][x];
+
+                if (!particle) {
+                    continue;
+                }
+
+                let moves;
+
+                if (particle === 1) {
+                    // 沙子：正下方、左下、右下
+                    const diagonalMoves = shuffle([
+                        [gravity.x + sideX, gravity.y + sideY],
+                        [gravity.x - sideX, gravity.y - sideY]
+                    ]);
+
+                    moves = [
+                        [gravity.x, gravity.y],
+                        ...diagonalMoves
+                    ];
+                                } else {
+                    // 水：先向重力方向，再向左下/右下，最后向左右
+                    const diagonalMoves = shuffle([
+                        [gravity.x + sideX, gravity.y + sideY],
+                        [gravity.x - sideX, gravity.y - sideY]
+                    ]);
+
+                    const horizontalMoves = shuffle([
+                        [sideX, sideY],
+                        [-sideX, -sideY]
+                    ]);
+
+                    moves = [
+                        // 1. 正下方
+                        [gravity.x, gravity.y],
+
+                        // 2. 左下、右下
+                        ...diagonalMoves,
+
+                        // 3. 左、右
+                        ...horizontalMoves
+                    ];
+                }
+
+                for (const [dx, dy] of moves) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (
+                        nx < 0 ||
+                        nx >= COLS ||
+                        ny < 0 ||
+                        ny >= ROWS ||
+                        moved[ny][nx]
+                    ) {
+                        continue;
+                    }
+
+                    const target = particles[ny][nx];
+
+                    // 目标位置密度必须小于当前位置密度
+                    if (density[target] >= density[particle]) {
+                        continue;
+                    }
+
+                    // 移动定义为交换两个位置的粒子
+                    particles[ny][nx] = particle;
+                    particles[y][x] = target;
+
+                    moved[y][x] = 1;
+                    moved[ny][nx] = 1;
+
+                    break;
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, COLS, ROWS);
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (particles[y][x] === 1) {
+                        ctx.fillStyle = "#e4ad45";
+                        ctx.fillRect(x, y, 1, 1);
+                    } else if (particles[y][x] === 2) {
+                        ctx.fillStyle = "#3d9be9";
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+        }
+
+        let lastUpdate = 0;
+
+        function loop(time) {
+            if (!paused && time - lastUpdate > 25) {
+                moveParticles();
+                lastUpdate = time;
+            }
+
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
 
         body {
             margin: 0;
