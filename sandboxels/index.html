@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>物理沙盒</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #20242b;
+            color: #fff;
+            font-family: Arial, "Microsoft YaHei", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .app {
+            width: min(900px, 96vw);
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0 0 12px;
+            font-size: 24px;
+        }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        button,
+        select,
+        input {
+            font: inherit;
+        }
+
+        button,
+        select {
+            border: 0;
+            border-radius: 6px;
+            padding: 7px 10px;
+            background: #3a414c;
+            color: white;
+            cursor: pointer;
+        }
+
+        button:hover,
+        select:hover {
+            background: #505967;
+        }
+
+        button.active {
+            background: #d49b32;
+            color: #181818;
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #11151a;
+            border: 2px solid #68717d;
+            border-radius: 6px;
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .hint {
+            color: #b7bec8;
+            text-align: center;
+            font-size: 13px;
+            margin-top: 9px;
+        }
+    </style>
+</head>
+<body>
+    <main class="app">
+        <h1>物理沙盒</h1>
+
+        <div class="toolbar">
+            <button id="placeButton" class="active">放置沙子</button>
+            <button id="eraseButton">擦除</button>
+
+            <label>
+                重力方向：
+                <select id="gravitySelect">
+                    <option value="0,1">↓ 下</option>
+                    <option value="-1,1">↙ 左下</option>
+                    <option value="1,1">↘ 右下</option>
+                    <option value="-1,0">← 左</option>
+                    <option value="1,0">→ 右</option>
+                    <option value="-1,-1">↖ 左上</option>
+                    <option value="0,-1">↑ 上</option>
+                    <option value="1,-1">↗ 右上</option>
+                </select>
+            </label>
+
+            <label>
+                笔刷：
+                <input id="brushSize" type="range" min="1" max="8" value="2">
+                <span id="brushValue">2</span>
+            </label>
+
+            <button id="pauseButton">暂停</button>
+            <button id="clearButton">清空</button>
+        </div>
+
+        <canvas id="canvas" width="160" height="120"></canvas>
+        <div class="hint">拖动鼠标或触摸屏幕即可放置、擦除沙子</div>
+    </main>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const COLS = canvas.width;
+        const ROWS = canvas.height;
+
+        const sand = Array.from(
+            { length: ROWS },
+            () => new Uint8Array(COLS)
+        );
+
+        let gravity = { x: 0, y: 1 };
+        let mode = "place";
+        let paused = false;
+        let drawing = false;
+
+        const placeButton = document.getElementById("placeButton");
+        const eraseButton = document.getElementById("eraseButton");
+        const gravitySelect = document.getElementById("gravitySelect");
+        const brushSize = document.getElementById("brushSize");
+        const brushValue = document.getElementById("brushValue");
+        const pauseButton = document.getElementById("pauseButton");
+        const clearButton = document.getElementById("clearButton");
+
+        placeButton.addEventListener("click", () => {
+            mode = "place";
+            placeButton.classList.add("active");
+            eraseButton.classList.remove("active");
+        });
+
+        eraseButton.addEventListener("click", () => {
+            mode = "erase";
+            eraseButton.classList.add("active");
+            placeButton.classList.remove("active");
+        });
+
+        gravitySelect.addEventListener("change", () => {
+            const [x, y] = gravitySelect.value.split(",").map(Number);
+            gravity = { x, y };
+        });
+
+        brushSize.addEventListener("input", () => {
+            brushValue.textContent = brushSize.value;
+        });
+
+        pauseButton.addEventListener("click", () => {
+            paused = !paused;
+            pauseButton.textContent = paused ? "继续" : "暂停";
+        });
+
+        clearButton.addEventListener("click", () => {
+            for (let y = 0; y < ROWS; y++) {
+                sand[y].fill(0);
+            }
+        });
+
+        function paint(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = COLS / rect.width;
+            const scaleY = ROWS / rect.height;
+
+            const centerX = Math.floor((event.clientX - rect.left) * scaleX);
+            const centerY = Math.floor((event.clientY - rect.top) * scaleY);
+            const radius = Number(brushSize.value);
+
+            for (let y = centerY - radius; y <= centerY + radius; y++) {
+                for (let x = centerX - radius; x <= centerX + radius; x++) {
+                    if (
+                        x >= 0 &&
+                        x < COLS &&
+                        y >= 0 &&
+                        y < ROWS &&
+                        (x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2
+                    ) {
+                        sand[y][x] = mode === "place" ? 1 : 0;
+                    }
+                }
+            }
+        }
+
+        canvas.addEventListener("pointerdown", event => {
+            drawing = true;
+            canvas.setPointerCapture(event.pointerId);
+            paint(event);
+        });
+
+        canvas.addEventListener("pointermove", event => {
+            if (drawing) {
+                paint(event);
+            }
+        });
+
+        canvas.addEventListener("pointerup", () => {
+            drawing = false;
+        });
+
+        canvas.addEventListener("pointercancel", () => {
+            drawing = false;
+        });
+
+        function moveSand() {
+            const cells = [];
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (sand[y][x]) {
+                        cells.push({ x, y });
+                    }
+                }
+            }
+
+            // 沿重力方向最远的沙子优先处理，避免一格移动多次
+            cells.sort((a, b) => {
+                const da = a.x * gravity.x + a.y * gravity.y;
+                const db = b.x * gravity.x + b.y * gravity.y;
+                return db - da;
+            });
+
+            const sideX = -gravity.y;
+            const sideY = gravity.x;
+
+            for (const cell of cells) {
+                const { x, y } = cell;
+
+                if (!sand[y][x]) {
+                    continue;
+                }
+
+                const candidates = [
+                    [gravity.x, gravity.y],
+                    [gravity.x + sideX, gravity.y + sideY],
+                    [gravity.x - sideX, gravity.y - sideY]
+                ];
+
+                // 先尝试正下方，再随机尝试两个斜下方
+                const diagonalCandidates = candidates.slice(1);
+
+                for (let i = diagonalCandidates.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [diagonalCandidates[i], diagonalCandidates[j]] =
+                        [diagonalCandidates[j], diagonalCandidates[i]];
+                }
+
+                const moves = [candidates[0], ...diagonalCandidates];
+
+                for (const [dx, dy] of moves) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (
+                        nx >= 0 &&
+                        nx < COLS &&
+                        ny >= 0 &&
+                        ny < ROWS &&
+                        !sand[ny][nx]
+                    ) {
+                        sand[ny][nx] = 1;
+                        sand[y][x] = 0;
+                        break;
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "#e4ad45";
+
+            for (let y = 0; y < ROWS; y++) {
+                for (let x = 0; x < COLS; x++) {
+                    if (sand[y][x]) {
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+            }
+        }
+
+        let lastUpdate = 0;
+
+        function loop(time) {
+            if (!paused && time - lastUpdate > 25) {
+                moveSand();
+                lastUpdate = time;
+            }
+
+            draw();
+            requestAnimationFrame(loop);
+        }
+
+        requestAnimationFrame(loop);
+    </script>
+</body>
+</html>
