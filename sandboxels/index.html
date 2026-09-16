@@ -131,7 +131,7 @@
 
         <canvas id="canvas" width="160" height="120"></canvas>
         <div class="hint">
-            沙子：向下或斜下移动；水：向下或左右移动。移动会交换两个位置的粒子。
+            沙子：向下或斜下移动；水：会按压强向低压强方向流动，无法直接下落时优先左右下方。
         </div>
     </main>
 
@@ -281,6 +281,85 @@
             return array;
         }
 
+        function inBounds(x, y) {
+            return x >= 0 && x < COLS && y >= 0 && y < ROWS;
+        }
+
+        function getPressure(x, y, dx, dy) {
+            let pressure = 0;
+            const sampleOffsets = [
+                [0, 0],
+                [1, 0],
+                [-1, 0],
+                [0, 1],
+                [0, -1],
+                [1, 1],
+                [1, -1],
+                [-1, 1],
+                [-1, -1]
+            ];
+
+            for (const [ox, oy] of sampleOffsets) {
+                const nx = x + dx + ox;
+                const ny = y + dy + oy;
+
+                if (!inBounds(nx, ny)) {
+                    continue;
+                }
+
+                const cell = particles[ny][nx];
+                if (cell !== 0) {
+                    pressure += cell === 2 ? 2 : 1;
+                }
+            }
+
+            return pressure;
+        }
+
+        function pickWaterMove(x, y) {
+            const direct = [gravity.x, gravity.y];
+            const sideX = -gravity.y;
+            const sideY = gravity.x;
+            const diagonalMoves = shuffle([
+                [gravity.x + sideX, gravity.y + sideY],
+                [gravity.x - sideX, gravity.y - sideY]
+            ]);
+            const horizontalMoves = shuffle([
+                [sideX, sideY],
+                [-sideX, -sideY]
+            ]);
+
+            const candidates = [
+                { dir: direct, kind: "down" },
+                ...diagonalMoves.map(dir => ({ dir, kind: "diag" })),
+                ...horizontalMoves.map(dir => ({ dir, kind: "side" }))
+            ];
+
+            const valid = [];
+
+            for (const { dir } of candidates) {
+                const [dx, dy] = dir;
+                const nx = x + dx;
+                const ny = y + dy;
+
+                if (!inBounds(nx, ny)) {
+                    continue;
+                }
+
+                if (particles[ny][nx] === 0) {
+                    valid.push({ dir, pressure: getPressure(x, y, dx, dy) });
+                }
+            }
+
+            if (valid.length === 0) {
+                return null;
+            }
+
+            const pressureMin = Math.min(...valid.map(item => item.pressure));
+            const preferred = valid.filter(item => item.pressure === pressureMin);
+            return preferred[Math.floor(Math.random() * preferred.length)].dir;
+        }
+
         function moveParticles() {
             const cells = [];
             const moved = Array.from(
@@ -321,7 +400,7 @@
                     continue;
                 }
 
-                let moves;
+                let move;
 
                 if (particle === 1) {
                     // 沙子：正下方、左下、右下
@@ -330,64 +409,88 @@
                         [gravity.x - sideX, gravity.y - sideY]
                     ]);
 
-                    moves = [
+                    const moves = [
                         [gravity.x, gravity.y],
                         ...diagonalMoves
                     ];
-                                } else {
-                    // 水：先向重力方向，再向左下/右下，最后向左右
-                    const diagonalMoves = shuffle([
-                        [gravity.x + sideX, gravity.y + sideY],
-                        [gravity.x - sideX, gravity.y - sideY]
-                    ]);
 
-                    const horizontalMoves = shuffle([
-                        [sideX, sideY],
-                        [-sideX, -sideY]
-                    ]);
+                    for (const [dx, dy] of moves) {
+                        const nx = x + dx;
+                        const ny = y + dy;
 
-                    moves = [
-                        // 1. 正下方
-                        [gravity.x, gravity.y],
+                        if (
+                            nx < 0 ||
+                            nx >= COLS ||
+                            ny < 0 ||
+                            ny >= ROWS ||
+                            moved[ny][nx]
+                        ) {
+                            continue;
+                        }
 
-                        // 2. 左下、右下
-                        ...diagonalMoves,
+                        const target = particles[ny][nx];
 
-                        // 3. 左、右
-                        ...horizontalMoves
-                    ];
-                }
+                        if (density[target] >= density[particle]) {
+                            continue;
+                        }
 
-                for (const [dx, dy] of moves) {
-                    const nx = x + dx;
-                    const ny = y + dy;
+                        move = [dx, dy];
+                        break;
+                    }
+                } else {
+                    // 水：若不能直接向下移动，则按压强随机选择低压强的左右下方；
+                    // 还是不行时再按压强随机选择左右。
+                    const direct = [gravity.x, gravity.y];
+                    const nx = x + direct[0];
+                    const ny = y + direct[1];
 
-                    if (
+                    const directlyBlocked =
                         nx < 0 ||
                         nx >= COLS ||
                         ny < 0 ||
                         ny >= ROWS ||
-                        moved[ny][nx]
-                    ) {
-                        continue;
+                        moved[ny][nx] ||
+                        density[particles[ny][nx]] >= density[particle];
+
+                    if (!directlyBlocked) {
+                        move = direct;
+                    } else {
+                        const candidate = pickWaterMove(x, y);
+                        if (candidate) {
+                            move = candidate;
+                        }
                     }
-
-                    const target = particles[ny][nx];
-
-                    // 目标位置密度必须小于当前位置密度
-                    if (density[target] >= density[particle]) {
-                        continue;
-                    }
-
-                    // 移动定义为交换两个位置的粒子
-                    particles[ny][nx] = particle;
-                    particles[y][x] = target;
-
-                    moved[y][x] = 1;
-                    moved[ny][nx] = 1;
-
-                    break;
                 }
+
+                if (!move) {
+                    continue;
+                }
+
+                const [dx, dy] = move;
+                const nx = x + dx;
+                const ny = y + dy;
+
+                if (
+                    nx < 0 ||
+                    nx >= COLS ||
+                    ny < 0 ||
+                    ny >= ROWS ||
+                    moved[ny][nx]
+                ) {
+                    continue;
+                }
+
+                const target = particles[ny][nx];
+
+                if (density[target] >= density[particle]) {
+                    continue;
+                }
+
+                particles[ny][nx] = particle;
+                particles[y][x] = target;
+
+                moved[y][x] = 1;
+                moved[ny][nx] = 1;
             }
         }
 
