@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自然单行式子 → LaTeX 转换器</title>
+  <!-- 引入 MathJax 用于实时预览 (可选) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    }
+    body {
+      background: #f5f7fb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: white;
+      max-width: 800px;
+      width: 100%;
+      border-radius: 24px;
+      box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+      padding: 28px 24px 32px;
+      transition: all 0.2s;
+    }
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-top: 0;
+      margin-bottom: 8px;
+      color: #1e293b;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    h1 span {
+      background: #eef2ff;
+      color: #4f46e5;
+      font-size: 1rem;
+      font-weight: 500;
+      padding: 4px 12px;
+      border-radius: 40px;
+    }
+    .subhead {
+      color: #475569;
+      margin-bottom: 24px;
+      font-size: 0.98rem;
+      border-left: 3px solid #6366f1;
+      padding-left: 16px;
+      background: #f8fafc;
+      border-radius: 0 12px 12px 0;
+      padding: 12px 16px;
+    }
+    .subhead code {
+      background: #e2e8f0;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      color: #0f172a;
+      font-weight: 500;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 20px;
+    }
+    label {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    label i {
+      font-style: normal;
+      font-size: 1.2rem;
+    }
+    textarea {
+      width: 100%;
+      padding: 16px 18px;
+      font-size: 1.2rem;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      border: 2px solid #e2e8f0;
+      border-radius: 18px;
+      resize: vertical;
+      background: #ffffff;
+      transition: 0.2s;
+      line-height: 1.5;
+      color: #0f172a;
+      letter-spacing: 0.2px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+    }
+    textarea:focus {
+      border-color: #6366f1;
+      outline: none;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
+    }
+    .output-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      margin-bottom: 6px;
+    }
+    .output-label {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 0.95rem;
+    }
+    .copy-btn {
+      background: #eef2ff;
+      border: none;
+      color: #4f46e5;
+      font-weight: 500;
+      font-size: 0.85rem;
+      padding: 6px 16px;
+      border-radius: 40px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: 0.15s;
+      border: 1px solid transparent;
+    }
+    .copy-btn:hover {
+      background: #e0e7ff;
+      border-color: #c7d2fe;
+    }
+    .copy-btn:active {
+      transform: scale(0.96);
+    }
+    .latex-box {
+      background: #0b1120;
+      color: #e2e8f0;
+      padding: 18px 20px;
+      border-radius: 18px;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      word-break: break-word;
+      white-space: pre-wrap;
+      border: 1px solid #1e293b;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.5);
+      min-height: 4.5rem;
+      letter-spacing: 0.2px;
+      margin-bottom: 18px;
+      overflow-x: auto;
+    }
+    .preview-area {
+      background: #f1f5f9;
+      border-radius: 18px;
+      padding: 18px 20px;
+      border: 1px solid #e2e8f0;
+      margin-top: 4px;
+    }
+    .preview-label {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #64748b;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .preview-content {
+      font-size: 1.3rem;
+      min-height: 3.5rem;
+      display: flex;
+      align-items: center;
+      color: #0f172a;
+    }
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 16px;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+    }
+    .example-chip {
+      background: #f1f5f9;
+      padding: 8px 16px;
+      border-radius: 40px;
+      font-family: monospace;
+      font-size: 1rem;
+      color: #1e293b;
+      cursor: pointer;
+      transition: 0.1s;
+      border: 1px solid #cbd5e1;
+      font-weight: 500;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+    }
+    .example-chip:hover {
+      background: #e2e8f0;
+      border-color: #94a3b8;
+    }
+    .error-tip {
+      color: #b91c1c;
+      font-size: 0.85rem;
+      margin-top: 6px;
+      padding-left: 8px;
+    }
+    .footer-note {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-top: 24px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>
+    ⚡ 自然式子 → LaTeX
+    <span>单行转换</span>
+  </h1>
+  <div class="subhead">
+    输入形如 <code>3x/2 + 1/x</code> 的式子，自动转为 <code>\frac{3x}{2} + \frac{1}{x}</code>
+  </div>
+
+  <!-- 输入区域 -->
+  <div class="input-group">
+    <label><i>📝</i> 自然单行式子</label>
+    <textarea id="inputExpr" rows="2" placeholder="例如: 3x/2 + 1/x 或 (a+b)/c - d/(e+f)">3x/2+1/x</textarea>
+  </div>
+
+  <!-- 输出 LaTeX -->
+  <div class="output-header">
+    <span class="output-label">🔣 LaTeX 代码</span>
+    <button class="copy-btn" id="copyBtn">
+      <span>📋</span> 复制
+    </button>
+  </div>
+  <div class="latex-box" id="latexOutput">\frac{3x}{2}+\frac{1}{x}</div>
+
+  <!-- 预览区域 (MathJax) -->
+  <div class="preview-area">
+    <div class="preview-label">
+      <span>👁️ 渲染预览</span>
+    </div>
+    <div class="preview-content" id="preview">
+      <!-- 动态插入 MathJax 预览 -->
+    </div>
+  </div>
+
+  <!-- 示例快捷输入 -->
+  <div class="examples">
+    <div class="example-chip" data-expr="3x/2+1/x">3x/2+1/x</div>
+    <div class="example-chip" data-expr="(a+b)/c">(a+b)/c</div>
+    <div class="example-chip" data-expr="x^2/(y+1) + 3y/4">x^2/(y+1)+3y/4</div>
+    <div class="example-chip" data-expr="1/(x+1) - 2/(x-1)">1/(x+1)-2/(x-1)</div>
+    <div class="example-chip" data-expr="(2x+3)/(x^2-1)">(2x+3)/(x^2-1)</div>
+  </div>
+  <div class="footer-note">
+    ⚙️ 支持嵌套括号 / 除法转分数，尽量保持原式结构
+  </div>
+</div>
+
+<script>
+  (function() {
+    const inputExpr = document.getElementById('inputExpr');
+    const latexOutput = document.getElementById('latexOutput');
+    const previewDiv = document.getElementById('preview');
+    const copyBtn = document.getElementById('copyBtn');
+    const exampleChips = document.querySelectorAll('.example-chip');
+
+    // ---------- 核心转换函数：自然式子 -> LaTeX ----------
+    function convertToLatex(input) {
+      if (!input || typeof input !== 'string') return '';
+
+      // 移除多余空格，保留必要的空格（但后期我们会忽略空格，所以先trim整体）
+      let expr = input.trim();
+      if (expr === '') return '';
+
+      // 辅助：判断字符是否可能是变量/数字/字母/希腊字母等（用于确定分子分母边界）
+      // 但我们的算法是基于括号匹配和除法符号扫描，不依赖具体字符类型
+
+      // 由于我们需要处理类似 "3x/2" 中隐含乘法，但 LaTeX 中 \frac{3x}{2} 是合法的。
+      // 不需要显式加乘号。
+
+      // 策略：
+      // 1. 找到所有除法符号 '/'，对于每个除法，确定其左侧的“操作数”（分子）和右侧的“操作数”（分母）
+      // 2. 操作数定义：一个“项”可以是一个括号组，或者一个由字母/数字/小数点/上标等组成的连续序列（不包含 + - * / 等二元运算符）
+      // 3. 将 a/b 替换为 \frac{a}{b}，递归处理内部，直到没有除法。
+      // 注意：要避免重复处理已经生成 \frac 内部的除法，所以要递归处理分子分母内部。
+
+      // 为了便于操作，我们先去掉所有空格（但保留空格可能导致项边界模糊，所以移除所有空白更安全）
+      // 但这样做可能改变像 "x + 1" 变成 "x+1"，不影响；但要注意 "a b" 可能表示乘法？一般自然单行式子中很少用空格表示乘法，我们移除空格。
+      let cleaned = expr.replace(/\s+/g, '');
+      if (cleaned === '') return '';
+
+      // 处理最外层可能存在的多余括号？不需要，我们只做除法替换和递归。
+
+      // 递归函数：处理字符串，返回转换后的LaTeX字符串
+      function process(s) {
+        // 寻找最外层的除法符号（不在任何括号内部）
+        let depth = 0;
+        let divIndex = -1;
+
+        // 从左到右扫描，找到深度为0的第一个除号
+        for (let i = 0; i < s.length; i++) {
+          const ch = s[i];
+          if (ch === '(') depth++;
+          else if (ch === ')') depth--;
+          else if (ch === '/' && depth === 0) {
+            divIndex = i;
+            break; // 只处理第一个最外层除号，然后递归处理左右
+          }
+        }
+
+        // 如果没有最外层除号，则检查是否整体被括号包裹，如果是则处理内部并返回带括号的结果
+        if (divIndex === -1) {
+          // 检查整体是否被一对匹配的括号包裹: 如 "(a+b)" 但没有除法，保留括号，但内部可能还有除法需要处理
+          if (s.length >= 2 && s[0] === '(' && s[s.length - 1] === ')') {
+            // 验证这对外层括号是否完全匹配（即没有提前闭合）
+            let d = 0;
+            let valid = true;
+            for (let i = 0; i < s.length; i++) {
+              if (s[i] === '(') d++;
+              else if (s[i] === ')') {
+                d--;
+                if (d === 0 && i !== s.length - 1) {
+                  valid = false; // 括号提前闭合，说明不是整体包裹
+                  break;
+                }
+              }
+            }
+            if (valid && d === 0) {
+              // 整体是一个括号组，递归处理内部，并保留外层括号
+              const inner = s.slice(1, -1);
+              const processedInner = process(inner);
+              return '(' + processedInner + ')';
+            }
+          }
+          // 没有最外层除号，也没有整体括号，则直接返回原字符串（可能包含内部括号内的除法？但内部括号会在递归中处理）
+          // 但是我们需要处理内部可能存在的除法，比如 "a+(b/c)" 中的 b/c 在括号内，但因为我们是从最外层扫描，
+          // 如果遇到括号内的除号，depth>0，不会被选为最外层除号。我们需要在无最外层除号时，递归处理子括号？
+          // 但为了简化，如果整个字符串没有最外层除号，但含有括号，我们应当递归处理每个括号内部。
+          // 简单做法：递归处理所有括号对内部，但不改变结构。
+          // 更稳健：我们遍历字符串，找到每一对最外层括号，递归处理内部，替换原括号内容。
+          // 但由于我们已经去掉了空格，且大部分情况下，若没有除号，但括号内可能有除法，需要处理。
+          // 例如输入 "1+(x/2)"，最外层除号？没有，因为除号在括号内 depth>0。
+          // 那么我们应该处理括号内的 x/2 -> \frac{x}{2}，得到 "1+(\frac{x}{2})"。
+          // 我们实现一个函数：处理所有括号内的除法，保持非括号部分不变。
+          // 为了不陷入复杂递归，这里使用一种稳妥的递归替换：找到最内层括号（或任意括号）处理内部，然后合并。
+          // 但为了保持代码简单且够用，我们采用另一种策略：从最内层括号开始处理，逐步向外。
+
+          // 因为我们已经将整个字符串去空格，并且我们只关心除法替换，可以先把所有括号内部处理好。
+          // 但我们需要保持括号本身，除非括号内部处理完不需要额外括号？但为了保持数学结构，我们保留括号。
+          // 这里我们使用一个递归下降：先找到第一个不在括号内的除号；如果没有，则寻找最内层的括号，处理内部，再递归整个字符串。
+          // 但更简单：使用正则匹配括号内部并递归？可能复杂。但我们可以用一个循环，每次处理一对最内层括号。
+
+          // 但为了不过度设计，我们利用一个事实：在数学表达式中，除号一般不会孤立在括号外而内部没有其他除号。
+          // 但我们可以实现一个简单的“递归处理括号内部”的逻辑：
+          // 找到最内层的括号（即没有嵌套括号的括号对），处理其内部，然后用结果替换括号内容（保留括号），
+          // 重复直到没有括号内部含有除号。
+          // 这里我们用 while 循环尝试处理最内层括号。
+
+          let result = s;
+          let changed = true;
+          while (changed) {
+            changed = false;
+            // 寻找最内层括号对: 即匹配的括号对内部不再包含括号
+            let start = -1;
+            let end = -1;
+            for (let i = 0; i < result.length; i++) {
+              if (result[i] === '(') {
+                // 检查从这里到匹配的右括号之间是否还有括号
+                let d = 1;
+                let j = i + 1;
+                let hasInnerParen = false;
+                while (j < result.length && d > 0) {
+                  if (result[j] === '(') {
+                    hasInnerParen = true;
+                    break;
+                  }
+                  if (result[j] === ')') d--;
+                  j++;
+                }
+                if (!hasInnerParen) {
+                  // 找到一对最内层括号 (i, j-1)
+                  // 需要确认 j-1 位置确实是 ')'
+                  if (d === 0 && j - 1 < result.length && result[j - 1] === ')') {
+                    start = i;
+                    end = j - 1;
+                    break;
+                  }
+                }
+              }
+            }
+            if (start !== -1) {
+              const inner = result.slice(start + 1, end);
+              // 递归处理内部 (内部可能还有除法)
+              const processedInner = process(inner);
+              // 替换括号内容 (保留括号)
+              result = result.slice(0, start + 1) + processedInner + result.slice(end);
+              changed = true;
+            }
+          }
+
+          // 此时 result 中所有括号内部的除法已经被处理了，但可能还存在没有括号的简单除法？应该不会，因为如果有最外层除号我们已经在前面处理了。
+          // 但可能由于之前递归内部，返回了 \frac 之类的，没影响。
+          // 此外，对于像 "a/b" 这样没有括号且没有最外层除号? 不可能，因为没有括号且含除号，除号就是最外层除号。
+          // 所以 result 中应该没有剩余的除号了（除了 \frac 中的除号，但那是LaTeX命令的一部分）。
+          // 但为了安全，我们再做一次检查：如果还有 '/' 且不在 \frac 内部，我们简单处理？但应该不会。
+          // 实际上可能会有多层括号嵌套除法的情况，上述循环能处理。
+          return result;
+        }
+
+        // --- 有最外层除号 ---
+        // 左操作数：从 divIndex-1 向左直到遇到深度0的运算符 +, -, *, / 或者左边界。
+        // 但需要注意括号匹配：如果向左遇到 ) 需要跳过整个括号组。
+        let leftEnd = divIndex; // 分子结束位置(不含)
+        let leftStart = divIndex;
+
+        // 向左扫描确定分子开始
+        let i = divIndex - 1;
+        // 跳过可能存在的空格？已经去除
+        // 如果遇到右括号，找到匹配的左括号，然后继续向左
+        while (i >= 0) {
+          const ch = s[i];
+          // 如果是深度0的二元运算符 +, -, *, / (但除号已经在 divIndex 处理，遇到除号应该停止，但除号是二元且可能作为边界)
+          // 但我们遇到 ')' 需要跳过括号块
+          if (ch === ')') {
+            // 向左寻找匹配的左括号
+            let d = 1;
+            let j = i - 1;
+            while (j >= 0 && d > 0) {
+              if (s[j] === ')') d++;
+              else if (s[j] === '(') d--;
+              j--;
+            }
+            // 现在 j+1 是匹配的左括号位置，我们从左括号左边继续，即 i = j
+            i = j; // 因为 j 是左括号前一个位置（或者-1）
+            continue;
+          }
+          // 如果是深度0的运算符 (+ - * / 或 左括号? 左括号一般不作为边界，但如果是 "(a+b)/c" 分子是括号整体)
+          // 遇到 '+' 或 '-' 或 '*' 或 '/' 则停止 (但除号我们不想包含)
+          // 注意: 这里 '*' 有时可能代表乘号，分子可以包含乘号吗？如 "2*x/3" 通常写成 "2x/3"，分子是 "2x"。如果有显式 '*'，按说分子应该包括 '*' 前的项? 但为了简单，我们遇到 '*' 也停止，但可能导致 "2*x/3" 变成 \frac{2}{?} 不对。
+          // 更好的做法：分子应该包含连续的因子（字母数字括号上标等），遇到加减乘除都停止（除法是当前的，乘法可能表示分子的一部分？但自然式子中一般不用 *，我们暂时认为 * 是乘号，但分子应该包含 * 吗？如 "2*x/3" 应转成 \frac{2*x}{3} 或者 \frac{2x}{3}。但为了简单，我们允许分子包含 '*'，因为 * 在LaTeX中是乘号，但通常我们会忽略它或换成 \cdot。我们先保留 * 作为分子一部分，因为自然式子中可能显式写 *。
+          // 调整：只有遇到 '+' 或 '-' 或 '/' 才停止（* 视为分子的一部分）
+          if (ch === '+' || ch === '-' || ch === '/') {
+            break;
+          }
+          // 如果是 '(' 而且不是与右括号配对（即没有右括号与它匹配），但这种情况少见，我们视为普通字符包含
+          if (ch === '(') {
+            // 向左遇到左括号，说明分子可能不完整？但应该不会，因为左括号一般与右边右括号配对出现在分子中
+            // 例如 (a+b)/c，扫描到 ( 时，应该继续向左？但我们是向左扫描，遇到 ( 且没有闭合，可能是前面有运算符？
+            // 简单处理：停止，让括号包含到分子中？但不好。为了处理 (a+b)/c，当扫描到右括号时我们已经跳过了整个括号，所以不会单独遇到左括号。
+            // 如果遇到左括号且没有匹配的右括号（也就是括号不匹配），我们停止
+            break;
+          }
+          i--;
+        }
+        leftStart = i + 1;
+
+        // 提取分子字符串
+        let numerator = s.slice(leftStart, leftEnd);
+        // 如果分子为空，可能除号前面没有东西，比如 "/2"，这种情况很少见，我们默认分子为 "1" 或者空？但数学中 "/2" 无意义，忽略。
+        if (numerator === '') {
+          // 可能是开头的除号，当作1
+          numerator = '1';
+        }
+
+        // 提取分母：从 divIndex+1 开始向右
+        let rightStart = divIndex + 1;
+        let rightEnd = divIndex + 1;
+
+        // 向右扫描，确定分母结束位置
+        i = rightStart;
+        while (i < s.length) {
+          const ch = s[i];
+          // 遇到深度0的 + - / 停止 (但 * 视为分母的一部分？)
+          if (ch === '+' || ch === '-' || ch === '/') {
+            break;
+          }
+          // 如果是 '('，需要跳过整个括号块
+          if (ch === '(') {
+            let d = 1;
+            let j = i + 1;
+            while (j < s.length && d > 0) {
+              if (s[j] === '(') d++;
+              else if (s[j] === ')') d--;
+              j++;
+            }
+            i = j; // 跳过整个括号块
+            continue;
+          }
+          // 如果是 ')'，且深度为0，说明分母结束（因为遇到右括号意味着前面有左括号被跳过，但这里是直接遇到右括号，可能表示分母是括号的一部分？例如 a/(b+c)，分母以 ( 开头，所以会跳过整个括号，不会直接遇到 ')'）
+          // 直接遇到 ')' 且没有先遇到 '('，可能是错误表达式，停止
+          if (ch === ')') {
+            break;
+          }
+          i++;
+        }
+        rightEnd = i;
+
+        // 提取分母字符串
+        let denominator = s.slice(rightStart, rightEnd);
+        if (denominator === '') {
+          // 除号后无东西，可能不合法，默认分母为1
+          denominator = '1';
+        }
+
+        // 递归处理分子和分母（它们内部可能还有除法）
+        const processedNum = process(numerator);
+        const processedDen = process(denominator);
+
+        // 构造 \frac{}{}
+        const frac = `\\frac{${processedNum}}{${processedDen}}`;
+
+        // 拼接：分子前面的部分 (leftStart之前) + frac + 分母之后的部分 (rightEnd之后)
+        const before = s.slice(0, leftStart);
+        const after = s.slice(rightEnd);
+        // 递归处理前后部分（它们可能还有除法）
+        const processedBefore = process(before);
+        const processedAfter = process(after);
+        return processedBefore + frac + processedAfter;
+      }
+
+      // 开始递归处理
+      let latex = process(cleaned);
+
+      // 一些后处理：处理多余的括号？暂不处理，保留括号结构。
+      // 将可能残留的连续空格（不会有了）
+      // 确保 \\frac 前后可能有空格？没有。
+      return latex;
+    }
+
+    // ---------- 更新界面 ----------
+    function updateConversion() {
+      const input = inputExpr.value;
+      const latex = convertToLatex(input);
+      latexOutput.textContent = latex || '\\text{(空)}';
+
+      // 更新预览 (用 MathJax 渲染)
+      // 清空预览并插入新的公式
+      previewDiv.innerHTML = '';
+      const formulaSpan = document.createElement('span');
+      // 为了防止 MathJax 处理错误，包裹在 \( ... \) 中
+      formulaSpan.textContent = `\\(${latex}\\)`;
+      previewDiv.appendChild(formulaSpan);
+
+      // 通知 MathJax 重新渲染
+      if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([previewDiv]).catch((err) => {
+          console.warn('MathJax 渲染出错:', err);
+        });
+      } else {
+        // 如果 MathJax 还没加载完，延迟重试
+        setTimeout(() => {
+          if (window.MathJax && MathJax.typesetPromise) {
+            MathJax.typesetPromise([previewDiv]).catch(() => {});
+          }
+        }, 300);
+      }
+    }
+
+    // 防抖，避免频繁更新 MathJax
+    let debounceTimer;
+    function debouncedUpdate() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        updateConversion();
+      }, 120);
+    }
+
+    // 监听输入
+    inputExpr.addEventListener('input', debouncedUpdate);
+
+    // 初始化：加载时执行一次
+    window.addEventListener('load', () => {
+      // 稍微延迟等待 MathJax 加载
+      setTimeout(updateConversion, 100);
+    });
+
+    // 复制按钮
+    copyBtn.addEventListener('click', async () => {
+      const latex = latexOutput.textContent;
+      if (!latex || latex === '\\text{(空)}') return;
+      try {
+        await navigator.clipboard.writeText(latex);
+        // 临时反馈
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '✅ 已复制';
+        setTimeout(() => {
+          copyBtn.innerHTML = originalText;
+        }, 1500);
+      } catch (err) {
+        alert('复制失败，请手动复制');
+      }
+    });
+
+    // 示例芯片点击
+    exampleChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        const expr = chip.getAttribute('data-expr');
+        if (expr) {
+          inputExpr.value = expr;
+          // 立即更新（不用防抖）
+          updateConversion();
+          inputExpr.focus();
+        }
+      });
+    });
+
+    // 处理 MathJax 动态加载完成后的重新渲染
+    if (window.MathJax) {
+      MathJax.startup.promise.then(() => {
+        updateConversion();
+      }).catch(() => {});
+    } else {
+      // 如果 MathJax 尚未加载，监听脚本加载完成
+      const checkMathJax = setInterval(() => {
+        if (window.MathJax && MathJax.startup && MathJax.startup.promise) {
+          clearInterval(checkMathJax);
+          MathJax.startup.promise.then(() => {
+            updateConversion();
+          }).catch(() => {});
+        }
+      }, 100);
+      setTimeout(() => clearInterval(checkMathJax), 5000);
+    }
+
+  })();
+</script>
+</body>
+</html>
