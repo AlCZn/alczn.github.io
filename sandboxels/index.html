@@ -22,6 +22,8 @@
 
         .app {
             width: min(900px, 96vw);
+            display: flex;
+            flex-direction: column;
         }
 
         h1 {
@@ -30,13 +32,28 @@
             font-size: 24px;
         }
 
+        /* canvas 保持在中间 */
+        canvas {
+            display: block;
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            background: #11151a;
+            border: 2px solid #68717d;
+            border-radius: 6px;
+            cursor: crosshair;
+            touch-action: none;
+            image-rendering: pixelated;
+        }
+
+        /* 控制区域移到下方 */
         .toolbar {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
             align-items: center;
             justify-content: center;
-            margin-bottom: 12px;
+            margin-top: 14px;      /* 从下方与画布隔开 */
+            margin-bottom: 0;
         }
 
         button,
@@ -76,18 +93,6 @@
             gap: 6px;
         }
 
-        canvas {
-            display: block;
-            width: 100%;
-            aspect-ratio: 4 / 3;
-            background: #11151a;
-            border: 2px solid #68717d;
-            border-radius: 6px;
-            cursor: crosshair;
-            touch-action: none;
-            image-rendering: pixelated;
-        }
-
         .hint {
             color: #b7bec8;
             text-align: center;
@@ -100,24 +105,14 @@
     <main class="app">
         <h1>物理沙盒</h1>
 
+        <!-- 画布在上方 -->
+        <canvas id="canvas" width="160" height="120"></canvas>
+
+        <!-- 工具栏放在画布下面，保留所有控件 -->
         <div class="toolbar">
             <button id="sandButton" class="active">放置沙子</button>
             <button id="waterButton">放置水</button>
             <button id="eraseButton">擦除</button>
-
-            <label>
-                重力方向：
-                <select id="gravitySelect">
-                    <option value="0,1">↓ 下</option>
-                    <option value="-1,1">↙ 左下</option>
-                    <option value="1,1">↘ 右下</option>
-                    <option value="-1,0">← 左</option>
-                    <option value="1,0">→ 右</option>
-                    <option value="-1,-1">↖ 左上</option>
-                    <option value="0,-1">↑ 上</option>
-                    <option value="1,-1">↗ 右上</option>
-                </select>
-            </label>
 
             <label>
                 笔刷：
@@ -129,9 +124,8 @@
             <button id="clearButton">清空</button>
         </div>
 
-        <canvas id="canvas" width="160" height="120"></canvas>
         <div class="hint">
-            沙子：向下或斜下移动；水：会按压强向低压强方向流动，无法直接下落时优先左右下方。
+            沙子：向下或斜下移动；水：优先下落，否则左右随机走一格。
         </div>
     </main>
 
@@ -154,7 +148,8 @@
             2: 1
         };
 
-        let gravity = { x: 0, y: 1 };
+        const gravity = { x: 0, y: 1 };
+
         let material = 1;
         let mode = "place";
         let paused = false;
@@ -163,7 +158,6 @@
         const sandButton = document.getElementById("sandButton");
         const waterButton = document.getElementById("waterButton");
         const eraseButton = document.getElementById("eraseButton");
-        const gravitySelect = document.getElementById("gravitySelect");
         const brushSize = document.getElementById("brushSize");
         const brushValue = document.getElementById("brushValue");
         const pauseButton = document.getElementById("pauseButton");
@@ -199,11 +193,6 @@
 
         eraseButton.addEventListener("click", () => {
             selectTool("erase");
-        });
-
-        gravitySelect.addEventListener("change", () => {
-            const [x, y] = gravitySelect.value.split(",").map(Number);
-            gravity = { x, y };
         });
 
         brushSize.addEventListener("input", () => {
@@ -285,79 +274,38 @@
             return x >= 0 && x < COLS && y >= 0 && y < ROWS;
         }
 
-        function getPressure(x, y, dx, dy) {
-            let pressure = 0;
-            const sampleOffsets = [
-                [0, 0],
-                [1, 0],
-                [-1, 0],
-                [0, 1],
-                [0, -1],
-                [1, 1],
-                [1, -1],
-                [-1, 1],
-                [-1, -1]
-            ];
-
-            for (const [ox, oy] of sampleOffsets) {
-                const nx = x + dx + ox;
-                const ny = y + dy + oy;
-
-                if (!inBounds(nx, ny)) {
-                    continue;
-                }
-
-                const cell = particles[ny][nx];
-                if (cell !== 0) {
-                    pressure += cell === 2 ? 2 : 1;
-                }
-            }
-
-            return pressure;
-        }
-
         function pickWaterMove(x, y) {
-            const direct = [gravity.x, gravity.y];
             const sideX = -gravity.y;
             const sideY = gravity.x;
-            const diagonalMoves = shuffle([
+
+            const direct = [gravity.x, gravity.y];
+            const diagonals = shuffle([
                 [gravity.x + sideX, gravity.y + sideY],
                 [gravity.x - sideX, gravity.y - sideY]
             ]);
-            const horizontalMoves = shuffle([
+
+            for (const [dx, dy] of [direct, ...diagonals]) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (inBounds(nx, ny) && particles[ny][nx] === 0) {
+                    return [dx, dy];
+                }
+            }
+
+            const sides = shuffle([
                 [sideX, sideY],
                 [-sideX, -sideY]
             ]);
 
-            const candidates = [
-                { dir: direct, kind: "down" },
-                ...diagonalMoves.map(dir => ({ dir, kind: "diag" })),
-                ...horizontalMoves.map(dir => ({ dir, kind: "side" }))
-            ];
-
-            const valid = [];
-
-            for (const { dir } of candidates) {
-                const [dx, dy] = dir;
+            for (const [dx, dy] of sides) {
                 const nx = x + dx;
                 const ny = y + dy;
-
-                if (!inBounds(nx, ny)) {
-                    continue;
-                }
-
-                if (particles[ny][nx] === 0) {
-                    valid.push({ dir, pressure: getPressure(x, y, dx, dy) });
+                if (inBounds(nx, ny) && particles[ny][nx] === 0) {
+                    return [dx, dy];
                 }
             }
 
-            if (valid.length === 0) {
-                return null;
-            }
-
-            const pressureMin = Math.min(...valid.map(item => item.pressure));
-            const preferred = valid.filter(item => item.pressure === pressureMin);
-            return preferred[Math.floor(Math.random() * preferred.length)].dir;
+            return null;
         }
 
         function moveParticles() {
@@ -375,17 +323,18 @@
                 }
             }
 
-            // 重力方向更靠前的粒子优先处理
             cells.sort((a, b) => {
-                const distanceA =
-                    a.x * gravity.x + a.y * gravity.y;
-                const distanceB =
-                    b.x * gravity.x + b.y * gravity.y;
-
-                return distanceA - distanceB;
+                const da = a.x * gravity.x + a.y * gravity.y;
+                const db = b.x * gravity.x + b.y * gravity.y;
+                return da - db;
             });
 
-            // 与重力垂直的方向
+            for (let i = 0; i < cells.length - 1; i++) {
+                if (Math.random() < 0.3) {
+                    [cells[i], cells[i + 1]] = [cells[i + 1], cells[i]];
+                }
+            }
+
             const sideX = -gravity.y;
             const sideY = gravity.x;
 
@@ -403,7 +352,6 @@
                 let move;
 
                 if (particle === 1) {
-                    // 沙子：正下方、左下、右下
                     const diagonalMoves = shuffle([
                         [gravity.x + sideX, gravity.y + sideY],
                         [gravity.x - sideX, gravity.y - sideY]
@@ -419,10 +367,8 @@
                         const ny = y + dy;
 
                         if (
-                            nx < 0 ||
-                            nx >= COLS ||
-                            ny < 0 ||
-                            ny >= ROWS ||
+                            nx < 0 || nx >= COLS ||
+                            ny < 0 || ny >= ROWS ||
                             moved[ny][nx]
                         ) {
                             continue;
@@ -438,23 +384,42 @@
                         break;
                     }
                 } else {
-                    // 水：若不能直接向下移动，则按压强随机选择低压强的左右下方；
-                    // 还是不行时再按压强随机选择左右。
                     const direct = [gravity.x, gravity.y];
                     const nx = x + direct[0];
                     const ny = y + direct[1];
 
                     const directlyBlocked =
-                        nx < 0 ||
-                        nx >= COLS ||
-                        ny < 0 ||
-                        ny >= ROWS ||
+                        nx < 0 || nx >= COLS ||
+                        ny < 0 || ny >= ROWS ||
                         moved[ny][nx] ||
                         density[particles[ny][nx]] >= density[particle];
 
                     if (!directlyBlocked) {
                         move = direct;
                     } else {
+                        if (
+                            nx >= 0 && nx < COLS &&
+                            ny >= 0 && ny < ROWS &&
+                            particles[ny][nx] === 1
+                        ) {
+                            const sx = nx + gravity.x;
+                            const sy = ny + gravity.y;
+
+                            if (
+                                inBounds(sx, sy) &&
+                                particles[sy][sx] === 0 &&
+                                !moved[sy][sx]
+                            ) {
+                                particles[sy][sx] = 1;
+                                particles[ny][nx] = 2;
+                                particles[y][x] = 0;
+                                moved[y][x] = 1;
+                                moved[ny][nx] = 1;
+                                moved[sy][sx] = 1;
+                                continue;
+                            }
+                        }
+
                         const candidate = pickWaterMove(x, y);
                         if (candidate) {
                             move = candidate;
@@ -471,10 +436,8 @@
                 const ny = y + dy;
 
                 if (
-                    nx < 0 ||
-                    nx >= COLS ||
-                    ny < 0 ||
-                    ny >= ROWS ||
+                    nx < 0 || nx >= COLS ||
+                    ny < 0 || ny >= ROWS ||
                     moved[ny][nx]
                 ) {
                     continue;
