@@ -279,16 +279,13 @@
         }
 
         function pickWaterMove(x, y) {
-            const sideX = -gravity.y;
-            const sideY = gravity.x;
-
-            const direct = [gravity.x, gravity.y];
-            const diagonals = shuffle([
-                [gravity.x + sideX, gravity.y + sideY],
-                [gravity.x - sideX, gravity.y - sideY]
+            const downwardMoves = shuffle([
+                [0, 1],
+                [-1, 1],
+                [1, 1]
             ]);
 
-            for (const [dx, dy] of [direct, ...diagonals]) {
+            for (const [dx, dy] of downwardMoves) {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (inBounds(nx, ny) && particles[ny][nx] === 0) {
@@ -296,12 +293,12 @@
                 }
             }
 
-            const sides = shuffle([
-                [sideX, sideY],
-                [-sideX, -sideY]
+            const sideMoves = shuffle([
+                [-1, 0],
+                [1, 0]
             ]);
 
-            for (const [dx, dy] of sides) {
+            for (const [dx, dy] of sideMoves) {
                 const nx = x + dx;
                 const ny = y + dy;
                 if (inBounds(nx, ny) && particles[ny][nx] === 0) {
@@ -388,19 +385,37 @@
                         break;
                     }
                 } else {
-                    const direct = [gravity.x, gravity.y];
-                    const nx = x + direct[0];
-                    const ny = y + direct[1];
+                    const downwardMoves = shuffle([
+                        [gravity.x, gravity.y],
+                        [gravity.x - 1, gravity.y + 1],
+                        [gravity.x + 1, gravity.y + 1]
+                    ]);
 
-                    const directlyBlocked =
-                        nx < 0 || nx >= COLS ||
-                        ny < 0 || ny >= ROWS ||
-                        moved[ny][nx] ||
-                        density[particles[ny][nx]] >= density[particle];
+                    let foundDownward = false;
 
-                    if (!directlyBlocked) {
-                        move = direct;
-                    } else {
+                    for (const [dx, dy] of downwardMoves) {
+                        const nx = x + dx;
+                        const ny = y + dy;
+
+                        if (
+                            nx < 0 || nx >= COLS ||
+                            ny < 0 || ny >= ROWS ||
+                            moved[ny][nx]
+                        ) {
+                            continue;
+                        }
+
+                        if (density[particles[ny][nx]] < density[particle]) {
+                            move = [dx, dy];
+                            foundDownward = true;
+                            break;
+                        }
+                    }
+
+                    if (!foundDownward) {
+                        const nx = x + gravity.x;
+                        const ny = y + gravity.y;
+
                         if (
                             nx >= 0 && nx < COLS &&
                             ny >= 0 && ny < ROWS &&
