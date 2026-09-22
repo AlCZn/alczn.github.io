@@ -1,39 +1,358 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlCZn</title>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitHub Pages · 导航站</title>
+    <!-- 引入字体与图标库 (Font Awesome 用于图标) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #fffacd;
-            margin: 0;
-            padding: 0;
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Helvetica,
+          Arial,
+          sans-serif;
+        background: #f6f8fa;
+        color: #1f2328;
+        line-height: 1.5;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      /* 主卡片容器 */
+      .pages-container {
+        max-width: 1100px;
+        width: 100%;
+        background: #ffffff;
+        border-radius: 32px;
+        box-shadow:
+          0 20px 35px -8px rgba(0, 0, 0, 0.1),
+          0 10px 15px -6px rgba(0, 0, 0, 0.05);
+        padding: 2.5rem 2rem;
+        transition: all 0.2s ease;
+        border: 1px solid rgba(0, 0, 0, 0.02);
+      }
+
+      /* 头部区域 */
+      .header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin-bottom: 2.5rem;
+      }
+
+      .avatar-wrapper {
+        background: linear-gradient(135deg, #24292e 0%, #3a4149 100%);
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 1.25rem;
+        box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease;
+      }
+
+      .avatar-wrapper i {
+        font-size: 3rem;
+        color: #ffffff;
+      }
+
+      .header h1 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+        color: #0a0c10;
+        margin-bottom: 0.5rem;
+      }
+
+      .header h1 span {
+        background: linear-gradient(145deg, #0969da, #218bff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      .header .subhead {
+        font-size: 1rem;
+        color: #59636e;
+        max-width: 550px;
+        font-weight: 400;
+        border-bottom: 1px solid #d0d7de;
+        padding-bottom: 1.5rem;
+        width: 100%;
+      }
+
+      /* 网格卡片布局 */
+      .pages-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.25rem;
+      }
+
+      /* 卡片样式 */
+      .page-card {
+        background: #ffffff;
+        border: 1px solid #d0d7de;
+        border-radius: 20px;
+        padding: 1.75rem 1.5rem;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .page-card::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, #0969da, #218bff, #6e40c9);
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .page-card:hover {
+        border-color: #afb8c1;
+        box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.12);
+        transform: translateY(-3px);
+        background: #f9fafb;
+      }
+
+      .page-card:hover::after {
+        opacity: 1;
+      }
+
+      .card-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #0969da;
+        background: #eef2f6;
+        width: 52px;
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 14px;
+        transition: all 0.2s ease;
+      }
+
+      .page-card:hover .card-icon {
+        background: #0969da;
+        color: white;
+      }
+
+      .card-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.4rem;
+        color: #0a0c10;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .card-desc {
+        font-size: 0.9rem;
+        color: #59636e;
+        margin-bottom: 1rem;
+        flex: 1;
+      }
+
+      .card-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+        color: #6e7781;
+        border-top: 1px solid #e6e9ed;
+        padding-top: 1rem;
+        margin-top: auto;
+      }
+
+      .card-meta i {
+        font-size: 0.75rem;
+      }
+
+      /* .card-meta .badge {
+        background: #ddf4ff;
+        color: #0969da;
+        padding: 0.15rem 0.6rem;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.7rem;
+        letter-spacing: 0.01em;
+      } */
+
+      /* 底部分隔与footer */
+      .footer-note {
+        margin-top: 2.5rem;
+        text-align: center;
+        font-size: 0.8rem;
+        color: #6e7781;
+        border-top: 1px solid #d0d7de;
+        padding-top: 1.5rem;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .footer-note i {
+        color: #0969da;
+      }
+
+      /* 给“主页”卡片一点特别关注? 不需要 都是统一风格 */
+      /* 如果只有一个卡片也可以居中，但网格会自动处理 */
+
+      /* 亮色模式适配完成，暗色模式可选 (不做深色模式，保持干净) */
+
+      /* 响应式微调 */
+      @media (max-width: 600px) {
+        .pages-container {
+          padding: 1.5rem 1.25rem;
+          border-radius: 24px;
         }
-        .title {
-            text-align: center;
-            margin-top: 50px;
-            font-size: 2em;
-            color: #333;
+
+        .header h1 {
+          font-size: 1.8rem;
         }
-        a {
-            display: block;
-            text-align: center;
-            margin-top: 20px;
-            font-size: 1.2em;
-            color: #007BFF;
-            text-decoration: none;
+
+        .avatar-wrapper {
+          width: 70px;
+          height: 70px;
         }
-        a:hover {
-            text-decoration: underline;
+
+        .avatar-wrapper i {
+          font-size: 2.5rem;
         }
+
+        .pages-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .page-card {
+          padding: 1.25rem;
+        }
+      }
+
+      /* 修饰性微交互 */
+      .page-card .card-title i {
+        font-size: 0.9rem;
+        color: #6e7781;
+        transition: transform 0.2s;
+      }
+
+      .page-card:hover .card-title i {
+        transform: translateX(4px);
+      }
     </style>
-</head>
-<body>
-    <p class="title">这里是 AlCZn</p>
-    <a href="/sandboxels/">物理沙盒</a>
-    <a href="/conwayslife/">康威生命游戏</a>
-    <a href="/na2la/">自然转 LaTeX</a>
-</body>
+  </head>
+  <body>
+    <div class="pages-container">
+      <!-- 头部简介 -->
+      <div class="header">
+        <div class="avatar-wrapper">
+          <i class="fab fa-github"></i>
+        </div>
+        <h1><span>GitHub Pages</span> 导航</h1>
+        <div class="subhead">
+          这里收集了我所有的 GitHub Pages 站点 —— 项目演示、博客、工具和实验。
+        </div>
+      </div>
+
+      <!-- 网格卡片区域：这里可以轻松添加/删除链接卡片 -->
+      <div class="pages-grid">
+        <a
+          href="https://alczn.github.io/profile"
+          class="page-card"
+          target="_blank"
+          rel="noopener"
+        >
+          <div class="card-icon">
+            <i class="fas fa-home"></i>
+          </div>
+          <div class="card-title">
+            个人主页
+            <i class="fas fa-arrow-right"></i>
+          </div>
+          <div class="card-desc">【占位符】</div>
+          <div class="card-meta">
+            <i class="fas fa-link"></i>
+            <span>/profile</span>
+          </div>
+        </a>
+
+        <a
+          href="https://alczn.github.io/sandboxels/"
+          class="page-card"
+          target="_blank"
+          rel="noopener"
+        >
+          <div class="card-icon">
+            <i class="fas fa-code"></i>
+          </div>
+          <div class="card-title">
+            沙盒游戏
+            <i class="fas fa-arrow-right"></i>
+          </div>
+          <div class="card-desc">【占位符】</div>
+          <div class="card-meta">
+            <i class="fas fa-link"></i>
+            <span>/sandboxels</span>
+          </div>
+        </a>
+
+        <a
+          href="https://alczn.github.io/conwayslife/"
+          class="page-card"
+          target="_blank"
+          rel="noopener"
+        >
+          <div class="card-icon">
+            <i class="fas fa-cloud-sun"></i>
+          </div>
+          <div class="card-title">
+            康威生命游戏
+            <i class="fas fa-arrow-right"></i>
+          </div>
+          <div class="card-desc">随手写的</div>
+          <div class="card-meta">
+            <i class="fas fa-link"></i>
+            <span>/conwayslife</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </body>
 </html>
