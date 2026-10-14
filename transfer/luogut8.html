@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>时间传送器</title>
+    <style>
+      /* ========== 全局重置与基础 ========== */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        min-height: 100vh;
+        background: #05080c;
+        font-family:
+          "Inter",
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        color: #e8f0ff;
+        padding: 1rem;
+      }
+
+      /* ========== 主卡片 ========== */
+      .portal-card {
+        position: relative;
+        width: 100%;
+        max-width: 560px;
+        background: radial-gradient(
+          circle at 30% 20%,
+          rgba(20, 60, 120, 0.35),
+          rgba(5, 12, 22, 0.95)
+        );
+        backdrop-filter: blur(8px);
+        border-radius: 3.5rem;
+        padding: 3rem 2.5rem;
+        text-align: center;
+        border: 1px solid rgba(100, 180, 255, 0.2);
+        box-shadow:
+          0 35px 60px -20px #000000,
+          0 0 0 1px rgba(70, 130, 255, 0.1) inset;
+        transition:
+          opacity 0.5s ease,
+          transform 0.5s ease;
+        z-index: 10;
+      }
+
+      .portal-card.fade-out {
+        opacity: 0;
+        transform: scale(0.96);
+        pointer-events: none;
+      }
+
+      /* ========== 标题 ========== */
+      .chapter-badge {
+        display: inline-block;
+        padding: 0.35rem 1.2rem;
+        border-radius: 40px;
+        background: rgba(30, 80, 160, 0.3);
+        border: 1px solid #2f6fb0;
+        font-size: 0.8rem;
+        font-weight: 500;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: #9ac7ff;
+        margin-bottom: 1.5rem;
+        backdrop-filter: blur(4px);
+      }
+
+      h1 {
+        font-size: 2.8rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 1.2;
+        margin-bottom: 0.75rem;
+        background: linear-gradient(135deg, #ffffff, #8bc2ff, #c2dcff);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: 0 0 30px rgba(60, 140, 255, 0.5);
+      }
+
+      .subtitle {
+        color: #8ba9d0;
+        font-size: 1.1rem;
+        margin-bottom: 2.5rem;
+        font-weight: 400;
+        opacity: 0.9;
+        letter-spacing: 0.02em;
+      }
+
+      /* 倒计时提示块 */
+      .countdown-hint {
+        margin-top: 1.5rem;
+        font-size: 1.2rem;
+        color: #9ac7ff;
+        letter-spacing: 0.1em;
+        text-shadow: 0 0 15px rgba(60, 140, 255, 0.7);
+        font-weight: 400;
+        min-height: 2.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+      }
+
+      .countdown-number {
+        display: inline-block;
+        min-width: 2.4rem;
+        padding: 0.2rem 0.6rem;
+        background: rgba(30, 80, 160, 0.4);
+        border-radius: 12px;
+        border: 1px solid #3a7bc8;
+        font-weight: 600;
+        color: #eef5ff;
+        font-size: 1.4rem;
+        line-height: 1.4;
+        box-shadow: 0 0 20px rgba(60, 140, 255, 0.3);
+      }
+
+      /* 备用提示 */
+      .fallback-msg {
+        margin-top: 1.8rem;
+        font-size: 0.9rem;
+        color: #5f7f9f;
+        border-top: 1px solid #1f3142;
+        padding-top: 1.5rem;
+      }
+
+      /* ========== 传送动画层 ========== */
+      .time-travel-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(circle at center, #03070d, #000000);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+      }
+
+      .time-travel-overlay.active {
+        opacity: 1;
+        pointer-events: all;
+      }
+
+      /* 时间漩涡 */
+      .vortex {
+        position: relative;
+        width: 260px;
+        height: 260px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .ring {
+        position: absolute;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        box-shadow:
+          0 0 30px rgba(60, 140, 255, 0.6),
+          0 0 60px rgba(40, 100, 255, 0.3);
+        opacity: 0.9;
+      }
+
+      .ring1 {
+        width: 100%;
+        height: 100%;
+        border-top-color: #4d9aff;
+        border-right-color: #2a6fd0;
+        animation: spin1 1.2s infinite linear;
+      }
+
+      .ring2 {
+        width: 76%;
+        height: 76%;
+        border-bottom-color: #8ac4ff;
+        border-left-color: #3b82f6;
+        animation: spin2 1.6s infinite linear reverse;
+      }
+
+      .ring3 {
+        width: 52%;
+        height: 52%;
+        border-top-color: #c2dcff;
+        border-right-color: #1e4a8a;
+        animation: spin1 2s infinite linear;
+      }
+
+      .ring4 {
+        width: 30%;
+        height: 30%;
+        border-bottom-color: #ffffff;
+        border-left-color: #5a9eff;
+        animation: spin2 2.5s infinite linear reverse;
+      }
+
+      .core {
+        width: 18%;
+        height: 18%;
+        background: radial-gradient(circle, #ffffff, #6aaeff, #1e4a8a);
+        border-radius: 50%;
+        box-shadow:
+          0 0 40px #3f9eff,
+          0 0 80px #1e5fbf;
+        animation: pulse 0.9s infinite alternate ease-in-out;
+      }
+
+      @keyframes spin1 {
+        from {
+          transform: rotate(0deg);
+        }
+
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes spin2 {
+        from {
+          transform: rotate(360deg);
+        }
+
+        to {
+          transform: rotate(0deg);
+        }
+      }
+
+      @keyframes pulse {
+        from {
+          transform: scale(0.9);
+          opacity: 0.8;
+        }
+
+        to {
+          transform: scale(1.2);
+          opacity: 1;
+        }
+      }
+
+      /* 时间粒子 */
+      .particle {
+        position: absolute;
+        background: white;
+        border-radius: 50%;
+        opacity: 0.7;
+        filter: blur(1px);
+        animation: particleMove 1s infinite alternate ease-out;
+      }
+
+      @keyframes particleMove {
+        from {
+          transform: translate(0, 0) scale(1);
+          opacity: 0.8;
+        }
+
+        to {
+          transform: translate(var(--tx), var(--ty)) scale(1.5);
+          opacity: 0;
+        }
+      }
+
+      /* 传送文字 */
+      .travel-text {
+        position: absolute;
+        bottom: 15%;
+        left: 0;
+        width: 100%;
+        text-align: center;
+        font-size: 1.2rem;
+        letter-spacing: 0.5em;
+        text-transform: uppercase;
+        color: #7ab7ff;
+        text-shadow:
+          0 0 20px #1e5fbf,
+          0 0 40px #0a2a5a;
+        animation: flicker 0.8s infinite alternate;
+        font-weight: 500;
+        z-index: 20;
+      }
+
+      @keyframes flicker {
+        0% {
+          opacity: 0.4;
+          letter-spacing: 0.5em;
+        }
+
+        100% {
+          opacity: 1;
+          letter-spacing: 0.6em;
+        }
+      }
+
+      /* 隐藏状态 */
+      .hidden {
+        display: none !important;
+      }
+
+      /* 响应式 */
+      @media (max-width: 480px) {
+        .portal-card {
+          padding: 2rem 1.5rem;
+          border-radius: 2.5rem;
+        }
+
+        h1 {
+          font-size: 2rem;
+        }
+
+        .vortex {
+          width: 200px;
+          height: 200px;
+        }
+
+        .travel-text {
+          font-size: 0.9rem;
+          letter-spacing: 0.3em;
+        }
+
+        .countdown-hint {
+          font-size: 1rem;
+        }
+
+        .countdown-number {
+          font-size: 1.2rem;
+          min-width: 2rem;
+        }
+      }
+
+      /* 打印时隐藏动画 */
+      @media print {
+        .time-travel-overlay {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- ========== 主界面 ========== -->
+    <div class="portal-card" id="portalCard">
+      <div class="chapter-badge">CHAPTER T8</div>
+      <h1>时间传送器</h1>
+      <div class="subtitle">开始穿越</div>
+
+      <!-- 倒计时 / 状态提示 -->
+      <div class="countdown-hint" id="countdownHint">
+        <span>🌀 传送启动</span>
+      </div>
+
+      <div class="fallback-msg">⏱️ 请等待，即将完成</div>
+    </div>
+
+    <!-- ========== 时间传送动画层 ========== -->
+    <div class="time-travel-overlay" id="travelOverlay">
+      <div class="vortex">
+        <div class="ring ring1"></div>
+        <div class="ring ring2"></div>
+        <div class="ring ring3"></div>
+        <div class="ring ring4"></div>
+        <div class="core"></div>
+        <!-- 动态生成的粒子会通过 JS 添加到这里 -->
+      </div>
+      <div class="travel-text">TIME TRAVELING</div>
+    </div>
+
+    <script>
+      (function () {
+        // ============================================================
+        // 配置区域：T1 ~ T7 的页面地址
+        // ============================================================
+        const T_PAGES = [
+          "https://www.luogu.com.cn/problem/U608733?contestId=364283", // T1
+          "https://www.luogu.com.cn/problem/U665092?contestId=364283", // T2
+          "https://www.luogu.com.cn/problem/U664792?contestId=364283", // T3
+          "https://www.luogu.com.cn/problem/U665100?contestId=364283", // T4
+          "https://www.luogu.com.cn/problem/U665211?contestId=364283", // T5
+          "https://www.luogu.com.cn/problem/U738516?contestId=364283", // T6
+          "https://www.luogu.com.cn/problem/U742017?contestId=364283", // T7
+        ];
+
+        // 动画展示时长（毫秒）—— 传送效果持续后跳转
+        const ANIMATION_DURATION = 2600; // 2.6 秒（包含倒计时过渡）
+        // 倒计时起始秒数（仅用于视觉提示）
+        const COUNTDOWN_START = 3;
+
+        // ============================================================
+        // DOM 元素
+        // ============================================================
+        const portalCard = document.getElementById("portalCard");
+        const travelOverlay = document.getElementById("travelOverlay");
+        const vortexContainer = document.querySelector(".vortex");
+        const countdownNumber = document.getElementById("countdownNumber");
+        const countdownHint = document.getElementById("countdownHint");
+
+        // 防止重复触发
+        let isTraveling = false;
+
+        // ============================================================
+        // 辅助：生成粒子（点缀传送门效果）
+        // ============================================================
+        function generateParticles(count = 22) {
+          const oldParticles = vortexContainer.querySelectorAll(".particle");
+          oldParticles.forEach((p) => p.remove());
+
+          for (let i = 0; i < count; i++) {
+            const particle = document.createElement("div");
+            particle.className = "particle";
+
+            const size = Math.random() * 4 + 2;
+            particle.style.width = size + "px";
+            particle.style.height = size + "px";
+
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 20 + Math.random() * 110;
+            const x = Math.cos(angle) * radius + 130;
+            const y = Math.sin(angle) * radius + 130;
+            particle.style.left = x + "px";
+            particle.style.top = y + "px";
+
+            const tx = (Math.random() - 0.5) * 60;
+            const ty = (Math.random() - 0.5) * 60;
+            particle.style.setProperty("--tx", tx + "px");
+            particle.style.setProperty("--ty", ty + "px");
+
+            particle.style.animationDelay = Math.random() * 0.8 + "s";
+            particle.style.animationDuration = 0.6 + Math.random() * 0.8 + "s";
+
+            const colors = ["#ffffff", "#a0c8ff", "#6aaeff", "#c2dcff"];
+            particle.style.background =
+              colors[Math.floor(Math.random() * colors.length)];
+
+            vortexContainer.appendChild(particle);
+          }
+        }
+
+        // ============================================================
+        // 开始自动传送（无点击，页面加载即触发）
+        // ============================================================
+        function autoStartTimeTravel() {
+          if (isTraveling) return;
+          isTraveling = true;
+
+          // 1. 主卡片淡出
+          portalCard.classList.add("fade-out");
+
+          // 2. 显示传送动画层
+          travelOverlay.classList.add("active");
+
+          // 3. 生成动态粒子
+          generateParticles(26);
+
+          // 4. 随机选取目标页面
+          const randomIndex = Math.floor(Math.random() * T_PAGES.length);
+          const targetUrl = T_PAGES[randomIndex];
+          console.log(`[时间传送] 自动选中 T${randomIndex + 1} → ${targetUrl}`);
+
+          // 5. 倒计时视觉效果 (从 COUNTDOWN_START 到 1)
+          let count = COUNTDOWN_START;
+          if (countdownNumber) {
+            countdownNumber.textContent = count;
+          }
+
+          const countdownInterval = setInterval(
+            () => {
+              count--;
+              if (count > 0) {
+                if (countdownNumber) countdownNumber.textContent = count;
+              } else {
+                // 倒计时结束, 清除interval, 显示"穿越中..."
+                if (countdownNumber) countdownNumber.textContent = "⚡";
+                if (countdownHint) {
+                  // 可替换文字为 "穿越中..." (也可以保留)
+                  // 这里保持简洁：不做替换，只让数字变成⚡
+                }
+                clearInterval(countdownInterval);
+              }
+            },
+            (ANIMATION_DURATION - 400) / COUNTDOWN_START,
+          ); // 留一点时间给最后的⚡
+
+          // 6. 延迟后跳转（使用 replace 避免返回时回到中转页）
+          setTimeout(() => {
+            clearInterval(countdownInterval); // 确保清理
+            if (targetUrl && targetUrl !== "") {
+              window.location.replace(targetUrl);
+            } else {
+              console.warn("⚠️ 目标地址为空，取消跳转");
+              // 重置状态（理论上不会发生）
+              travelOverlay.classList.remove("active");
+              portalCard.classList.remove("fade-out");
+              isTraveling = false;
+              alert("传送失败：未配置 T1~T7 页面地址。");
+            }
+          }, ANIMATION_DURATION);
+        }
+
+        // ============================================================
+        // 页面加载完成后立即启动传送（无按钮，全自动）
+        // ============================================================
+        window.addEventListener("load", () => {
+          // 短暂延迟，让卡片显示一下再传送（视觉上更自然）
+          // 直接启动也可以，但保留 0.3s 让用户看到卡片
+          setTimeout(() => {
+            autoStartTimeTravel();
+          }, 300);
+        });
+
+        // ============================================================
+        // 如果用户从浏览器历史返回（后退），重置状态（防止卡在动画层）
+        // ============================================================
+        window.addEventListener("pageshow", function (event) {
+          if (event.persisted) {
+            isTraveling = false;
+            travelOverlay.classList.remove("active");
+            portalCard.classList.remove("fade-out");
+            const particles = vortexContainer.querySelectorAll(".particle");
+            particles.forEach((p) => p.remove());
+            // 重置倒计时数字
+            if (countdownNumber) {
+              countdownNumber.textContent = COUNTDOWN_START;
+            }
+            // 重新触发自动传送？由于pageshow可能是后退，重新跳转可能会造成循环。
+            // 根据需求，如果是后退回到本页，用户可能想再次传送，但为了不陷入循环，
+            // 这里不自动重新启动，保留卡片状态，用户可手动刷新。
+            // 但题目要求“进入页面直接播放动画跳转”，通常指首次加载。
+            // 因此后退时不做自动跳转，仅重置UI。
+          }
+        });
+
+        // 防止粒子在页面隐藏时累积
+        // 初始化粒子（预览）—— 在load时也会调用generateParticles，此处不重复
+        // 但为了卡片展示时有粒子效果，可预先加少量粒子（视觉效果，随后被覆盖）
+        // 这行代码会在load之前执行，产生一些初始粒子，好看。
+        generateParticles(12);
+
+        // 额外：针对键盘/无障碍，因为无按钮，无需绑定
+      })();
+    </script>
+  </body>
+</html>
